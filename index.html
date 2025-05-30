@@ -31,14 +31,14 @@
             gap: 1.5rem; /* Espaçamento entre elementos */
         }
         /* Estilos para inputs e botões */
-        input[type="text"], input[type="password"], select, button { /* Adicionado input[type="password"] */
+        input[type="text"], input[type="password"], select, button {
             border-radius: 0.75rem; /* Cantos arredondados */
             padding: 0.75rem 1rem; /* Padding interno */
             font-size: 1rem;
             border: 1px solid #cbd5e1; /* Borda padrão */
             transition: all 0.2s ease-in-out; /* Transição suave */
         }
-        input[type="text"]:focus, input[type="password"]:focus, select:focus { /* Adicionado input[type="password"] */
+        input[type="text"]:focus, input[type="password"]:focus, select:focus {
             outline: none;
             border-color: #6366f1; /* Borda roxa ao focar */
             box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); /* Sombra de foco */
@@ -135,6 +135,17 @@
             background-color: #fecaca; /* Vermelho mais claro para a opção incorreta */
             font-weight: 700;
         }
+        /* Estilo para a explicação */
+        .explanation {
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            background-color: #e0f2fe; /* Azul claro para a explicação */
+            color: #0c4a6e; /* Azul escuro para o texto */
+            border-radius: 0.5rem;
+            border: 1px solid #93c5fd;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
@@ -175,7 +186,7 @@
         // Seleciona os elementos HTML
         const topicInput = document.getElementById('topic');
         const complexitySelect = document.getElementById('complexity');
-        const apiKeyInput = document.getElementById('apiKey'); // Novo elemento para a Key
+        const apiKeyInput = document.getElementById('apiKey');
         const generateQuizBtn = document.getElementById('generateQuizBtn');
         const loader = document.getElementById('loader');
         const quizOutput = document.getElementById('quizOutput');
@@ -183,7 +194,7 @@
 
         // URL do endpoint da API
         const API_ENDPOINT = 'https://n8n.acesse.rodrigobrinate.com.br/webhook/6674dab7-90ce-4bbf-af3c-ab08871cacb0';
-        const LOCAL_STORAGE_KEY = 'quizApiKey'; // Chave para armazenar a API Key no localStorage
+        const LOCAL_STORAGE_KEY = 'quizApiKey';
 
         // Função para exibir mensagens ao usuário
         function showMessage(message, type) {
@@ -223,7 +234,7 @@
 
             const topic = topicInput.value.trim();
             const complexity = complexitySelect.value;
-            const apiKey = apiKeyInput.value.trim(); // Obtém a chave
+            const apiKey = apiKeyInput.value.trim();
 
             // Validação dos inputs, incluindo a chave
             if (!topic) {
@@ -241,16 +252,16 @@
             generateQuizBtn.textContent = 'Gerando...';
 
             try {
-                // Constrói o prompt para a IA
-                const prompt = `Gere um quiz com 10 perguntas.`;
+                // Constrói o prompt para a IA, solicitando a explicação
+                //const prompt = `Gere um quiz com 10 perguntas sobre o seguinte tópico: "${topic}". O nível de complexidade das perguntas deve ser: "${complexity}". Para cada pergunta, forneça: 1. A pergunta em si. 2. Uma lista de 4 opções de resposta. 3. A resposta correta (uma das opções fornecidas). 4. Uma pequena explicação da resposta correta. O quiz deve ser retornado em formato JSON, seguindo a seguinte estrutura: [{"question": "...", "options": ["...", "...", "...", "..."], "correct_answer": "...", "explanation": "..."}]`;
 
-                // Prepara o payload para a requisição POST, incluindo a chave
+                // Prepara o payload para a requisição POST, incluindo a chave e o prompt detalhado
                 const payload = {
                     tema: topic,
                     nivel: complexity,
                     id: new Date().getTime(),
-                    prompt: prompt,
-                    key: apiKey // Inclui a chave no payload
+                    //prompt: prompt, // O prompt agora inclui a solicitação de explicação
+                    key: apiKey
                 };
 
                 // Faz a requisição POST para o endpoint
@@ -298,6 +309,8 @@
                 const questionDiv = document.createElement('div');
                 questionDiv.className = 'quiz-question';
                 questionDiv.dataset.correctAnswer = q.correct_answer;
+                // Armazena a explicação no dataset da pergunta
+                questionDiv.dataset.explanation = q.explanation || 'Nenhuma explicação disponível.'; // Garante um valor padrão
 
                 const optionsHtml = q.options.map(option =>
                     `<div class="option" data-value="${option}">${option}</div>`
@@ -307,6 +320,9 @@
                     <p>${index + 1}. ${q.question}</p>
                     <div class="quiz-options">
                         ${optionsHtml}
+                    </div>
+                    <div class="explanation hidden">
+                        <strong>Explicação:</strong> <span class="explanation-text"></span>
                     </div>
                 `;
                 quizOutput.appendChild(questionDiv);
@@ -324,13 +340,16 @@
             const questionDiv = selectedOptionEl.closest('.quiz-question');
             const optionsContainer = selectedOptionEl.closest('.quiz-options');
 
+            // Se a pergunta já foi respondida, não faz nada
             if (questionDiv.classList.contains('correct') || questionDiv.classList.contains('incorrect-answered')) {
                 return;
             }
 
             const correctAnswer = questionDiv.dataset.correctAnswer;
             const selectedAnswer = selectedOptionEl.dataset.value;
+            const explanation = questionDiv.dataset.explanation; // Obtém a explicação
 
+            // Remove classes de todas as opções e adiciona ao clicado
             optionsContainer.querySelectorAll('.option').forEach(option => {
                 option.classList.remove('selected');
                 option.classList.remove('correct-option');
@@ -338,6 +357,7 @@
             });
             selectedOptionEl.classList.add('selected');
 
+            // Verifica se a resposta está correta
             if (selectedAnswer === correctAnswer) {
                 questionDiv.classList.add('correct');
                 selectedOptionEl.classList.add('correct-option');
@@ -345,6 +365,7 @@
                 questionDiv.classList.add('incorrect-answered');
                 selectedOptionEl.classList.add('incorrect-option');
 
+                // Destaca a opção correta mesmo se a selecionada estiver errada
                 optionsContainer.querySelectorAll('.option').forEach(option => {
                     if (option.dataset.value === correctAnswer) {
                         option.classList.add('correct-option');
@@ -352,6 +373,15 @@
                 });
             }
 
+            // Exibe a explicação
+            const explanationDiv = questionDiv.querySelector('.explanation');
+            const explanationTextSpan = explanationDiv.querySelector('.explanation-text');
+            if (explanationTextSpan) {
+                explanationTextSpan.textContent = explanation;
+                explanationDiv.classList.remove('hidden');
+            }
+
+            // Desabilita cliques em todas as opções desta pergunta após a seleção
             optionsContainer.querySelectorAll('.option').forEach(option => {
                 option.style.pointerEvents = 'none';
             });
