@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Quiz</title>
+    <title>Gerador de Quiz Gemini</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Define a fonte Inter para todo o corpo */
@@ -150,7 +150,7 @@
 </head>
 <body>
     <div class="quiz-container">
-        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Gerador de Quiz Interativo</h1>
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Gerador de Quiz Gemini</h1>
 
         <div>
             <label for="topic" class="block text-gray-700 text-sm font-medium mb-2">Tópico do Quiz:</label>
@@ -168,8 +168,8 @@
         </div>
 
         <div>
-            <label for="apiKey" class="block text-gray-700 text-sm font-medium mb-2">Key (Chave de Acesso):</label>
-            <input type="password" id="apiKey" placeholder="Insira sua chave de acesso" class="w-full">
+            <label for="apiKey" class="block text-gray-700 text-sm font-medium mb-2">Key (Chave de Acesso Gemini):</label>
+            <input type="password" id="apiKey" placeholder="Insira sua chave de API Gemini" class="w-full">
         </div>
 
         <button id="generateQuizBtn" class="w-full">Gerar Quiz</button>
@@ -192,9 +192,12 @@
         const quizOutput = document.getElementById('quizOutput');
         const messageBox = document.getElementById('messageBox');
 
-        // URL do endpoint da API
-        const API_ENDPOINT = 'https://n8n.acesse.rodrigobrinate.com.br/webhook/6674dab7-90ce-4bbf-af3c-ab08871cacb0';
-        const LOCAL_STORAGE_KEY = 'quizApiKey';
+        // Chave para armazenar a API Key no localStorage
+        const LOCAL_STORAGE_KEY = 'geminiApiKey';
+
+        // URL do endpoint da API Gemini
+        // Usamos gemini-2.0-flash para geração de texto
+        const GEMINI_API_URL_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
         // Função para exibir mensagens ao usuário
         function showMessage(message, type) {
@@ -242,7 +245,7 @@
                 return;
             }
             if (!apiKey) {
-                showMessage('Por favor, insira sua chave de acesso (Key).', 'error');
+                showMessage('Por favor, insira sua chave de acesso (Key) da API Gemini.', 'error');
                 return;
             }
 
@@ -252,36 +255,65 @@
             generateQuizBtn.textContent = 'Gerando...';
 
             try {
-                // Constrói o prompt para a IA, solicitando a explicação
-                //const prompt = `Gere um quiz com 10 perguntas sobre o seguinte tópico: "${topic}". O nível de complexidade das perguntas deve ser: "${complexity}". Para cada pergunta, forneça: 1. A pergunta em si. 2. Uma lista de 4 opções de resposta. 3. A resposta correta (uma das opções fornecidas). 4. Uma pequena explicação da resposta correta. O quiz deve ser retornado em formato JSON, seguindo a seguinte estrutura: [{"question": "...", "options": ["...", "...", "...", "..."], "correct_answer": "...", "explanation": "..."}]`;
+                // Constrói o prompt para a IA, solicitando a explicação e o formato JSON
+                const prompt = `Gere um quiz com 10 perguntas sobre o seguinte tópico: "${topic}". O nível de complexidade das perguntas deve ser: "${complexity}". Para cada pergunta, forneça: 1. A pergunta em si. 2. Uma lista de 4 opções de resposta. 3. A resposta correta (uma das opções fornecidas). 4. Uma pequena explicação da resposta correta. O quiz deve ser retornado em formato JSON, seguindo a seguinte estrutura: [{"question": "...", "options": ["...", "...", "...", "..."], "correct_answer": "...", "explanation": "..."}]`;
 
-                // Prepara o payload para a requisição POST, incluindo a chave e o prompt detalhado
+                // Prepara o payload para a requisição POST para a API Gemini
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
                 const payload = {
-                    tema: topic,
-                    nivel: complexity,
-                    id: new Date().getTime(),
-                    //prompt: prompt, // O prompt agora inclui a solicitação de explicação
-                    key: apiKey
+                    contents: chatHistory,
+                    generationConfig: {
+                        responseMimeType: "application/json", // Solicita resposta em JSON
+                        responseSchema: { // Define o schema esperado
+                            type: "ARRAY",
+                            items: {
+                                type: "OBJECT",
+                                properties: {
+                                    "question": { "type": "STRING" },
+                                    "options": { "type": "ARRAY", "items": { "type": "STRING" } },
+                                    "correct_answer": { "type": "STRING" },
+                                    "explanation": { "type": "STRING" }
+                                },
+                                "propertyOrdering": ["question", "options", "correct_answer", "explanation"]
+                            }
+                        }
+                    }
                 };
 
-                // Faz a requisição POST para o endpoint
-                const response = await fetch(API_ENDPOINT, {
+                const apiUrl = `${GEMINI_API_URL_BASE}?key=${apiKey}`;
+
+                // Faz a requisição POST para a API Gemini
+                const response = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
 
                 // Verifica se a resposta da rede foi bem-sucedida
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Erro na rede: ${response.status} - ${errorText}`);
+                    const errorJson = await response.json();
+                    throw new Error(`Erro na API Gemini: ${response.status} - ${JSON.stringify(errorJson)}`);
                 }
 
                 // Tenta analisar a resposta como JSON
                 const result = await response.json();
-                const quizData = result.output;
+
+                let quizData = [];
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const jsonString = result.candidates[0].content.parts[0].text;
+                    try {
+                        quizData = JSON.parse(jsonString);
+                    } catch (parseError) {
+                        console.error('Erro ao analisar JSON da resposta da IA:', parseError);
+                        throw new Error('Formato de quiz inválido recebido da IA.');
+                    }
+                } else {
+                    throw new Error('Resposta da IA vazia ou em formato inesperado.');
+                }
 
                 // Verifica se o quizData é um array e contém perguntas
                 if (Array.isArray(quizData) && quizData.length > 0) {
