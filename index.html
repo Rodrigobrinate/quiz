@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Quiz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Define a fonte Inter para todo o corpo */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Cor de fundo suave */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        /* Estilo para o contêiner principal do aplicativo */
+        .quiz-container {
+            background-color: #ffffff;
+            padding: 2.5rem; /* Aumenta o padding */
+            border-radius: 1.5rem; /* Mais arredondado */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Sombra mais pronunciada */
+            width: 100%;
+            max-width: 600px; /* Largura máxima para desktops */
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem; /* Espaçamento entre elementos */
+        }
+        /* Estilos para inputs e botões */
+        input[type="text"], input[type="password"], select, button { /* Adicionado input[type="password"] */
+            border-radius: 0.75rem; /* Cantos arredondados */
+            padding: 0.75rem 1rem; /* Padding interno */
+            font-size: 1rem;
+            border: 1px solid #cbd5e1; /* Borda padrão */
+            transition: all 0.2s ease-in-out; /* Transição suave */
+        }
+        input[type="text"]:focus, input[type="password"]:focus, select:focus { /* Adicionado input[type="password"] */
+            outline: none;
+            border-color: #6366f1; /* Borda roxa ao focar */
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); /* Sombra de foco */
+        }
+        button {
+            background-color: #6366f1; /* Cor de fundo roxa */
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3); /* Sombra para o botão */
+        }
+        button:hover {
+            background-color: #4f46e5; /* Cor mais escura ao passar o mouse */
+            transform: translateY(-2px); /* Efeito de elevação */
+        }
+        button:active {
+            transform: translateY(0); /* Retorna ao normal ao clicar */
+        }
+        /* Estilo para o indicador de carregamento */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #6366f1;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: none; /* Escondido por padrão */
+            margin: 1rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Estilo para as perguntas do quiz */
+        .quiz-question {
+            background-color: #f8fafc; /* Fundo mais claro para perguntas */
+            padding: 1.25rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            border: 1px solid #e2e8f0;
+            transition: background-color 0.3s ease; /* Transição para mudança de cor */
+        }
+        .quiz-question p {
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: #1a202c; /* Cor do texto da pergunta */
+        }
+        .quiz-options div {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background-color: #edf2f7; /* Fundo para opções */
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .quiz-options div:hover:not(.selected) { /* Não aplica hover se já selecionado */
+            background-color: #e2e8f0; /* Fundo mais escuro ao passar o mouse */
+        }
+        .message-box {
+            padding: 1rem;
+            border-radius: 0.75rem;
+            margin-top: 1rem;
+            text-align: center;
+            font-weight: 500;
+        }
+        .message-box.success {
+            background-color: #d1fae5; /* Verde claro */
+            color: #065f46; /* Verde escuro */
+        }
+        .message-box.error {
+            background-color: #fee2e2; /* Vermelho claro */
+            color: #991b1b; /* Vermelho escuro */
+        }
+        /* Estilo para resposta correta */
+        .quiz-question.correct {
+            background-color: #d1fae5; /* Verde claro para resposta correta */
+            border-color: #065f46; /* Borda verde escuro */
+        }
+        /* Estilo para opção selecionada */
+        .quiz-options div.selected {
+            font-weight: 700;
+            background-color: #c7d2fe; /* Azul claro para opção selecionada */
+            border: 1px solid #6366f1;
+            cursor: default; /* Remove o cursor de ponteiro */
+        }
+        /* Estilo para opção correta (após seleção) */
+        .quiz-options div.correct-option {
+            background-color: #a7f3d0; /* Verde mais claro para a opção correta */
+            font-weight: 700;
+        }
+        /* Estilo para opção incorreta (após seleção) */
+        .quiz-options div.incorrect-option {
+            background-color: #fecaca; /* Vermelho mais claro para a opção incorreta */
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Gerador de Quiz Interativo</h1>
+
+        <div>
+            <label for="topic" class="block text-gray-700 text-sm font-medium mb-2">Tópico do Quiz:</label>
+            <input type="text" id="topic" placeholder="Ex: Inteligência Artificial, História do Brasil" class="w-full">
+        </div>
+
+        <div>
+            <label for="complexity" class="block text-gray-700 text-sm font-medium mb-2">Nível de Complexidade:</label>
+            <select id="complexity" class="w-full">
+                <option value="básica">Básica</option>
+                <option value="intermediária">Intermediária</option>
+                <option value="avançada">Avançada</option>
+                <option value="especializada">Especializada</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="apiKey" class="block text-gray-700 text-sm font-medium mb-2">Key (Chave de Acesso):</label>
+            <input type="password" id="apiKey" placeholder="Insira sua chave de acesso" class="w-full">
+        </div>
+
+        <button id="generateQuizBtn" class="w-full">Gerar Quiz</button>
+
+        <div id="loader" class="loader"></div>
+
+        <div id="messageBox" class="message-box hidden"></div>
+
+        <div id="quizOutput" class="mt-6">
+            </div>
+    </div>
+
+    <script>
+        // Seleciona os elementos HTML
+        const topicInput = document.getElementById('topic');
+        const complexitySelect = document.getElementById('complexity');
+        const apiKeyInput = document.getElementById('apiKey'); // Novo elemento para a Key
+        const generateQuizBtn = document.getElementById('generateQuizBtn');
+        const loader = document.getElementById('loader');
+        const quizOutput = document.getElementById('quizOutput');
+        const messageBox = document.getElementById('messageBox');
+
+        // URL do endpoint da API
+        const API_ENDPOINT = 'https://n8n.acesse.rodrigobrinate.com.br/webhook/6674dab7-90ce-4bbf-af3c-ab08871cacb0';
+        const LOCAL_STORAGE_KEY = 'quizApiKey'; // Chave para armazenar a API Key no localStorage
+
+        // Função para exibir mensagens ao usuário
+        function showMessage(message, type) {
+            messageBox.textContent = message;
+            messageBox.className = `message-box ${type}`;
+            messageBox.classList.remove('hidden');
+        }
+
+        // Função para esconder mensagens
+        function hideMessage() {
+            messageBox.classList.add('hidden');
+        }
+
+        // Função para carregar a API Key do localStorage
+        function loadApiKey() {
+            const storedKey = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (storedKey) {
+                apiKeyInput.value = storedKey;
+            }
+        }
+
+        // Função para salvar a API Key no localStorage
+        function saveApiKey(key) {
+            localStorage.setItem(LOCAL_STORAGE_KEY, key);
+        }
+
+        // Adiciona um event listener para salvar a key sempre que o input mudar
+        apiKeyInput.addEventListener('input', (event) => {
+            saveApiKey(event.target.value);
+        });
+
+        // Função para gerar o quiz
+        async function generateQuiz() {
+            // Limpa a área de quiz e esconde mensagens anteriores
+            quizOutput.innerHTML = '';
+            hideMessage();
+
+            const topic = topicInput.value.trim();
+            const complexity = complexitySelect.value;
+            const apiKey = apiKeyInput.value.trim(); // Obtém a chave
+
+            // Validação dos inputs, incluindo a chave
+            if (!topic) {
+                showMessage('Por favor, insira um tópico para o quiz.', 'error');
+                return;
+            }
+            if (!apiKey) {
+                showMessage('Por favor, insira sua chave de acesso (Key).', 'error');
+                return;
+            }
+
+            // Exibe o loader e desabilita o botão
+            loader.style.display = 'block';
+            generateQuizBtn.disabled = true;
+            generateQuizBtn.textContent = 'Gerando...';
+
+            try {
+                // Constrói o prompt para a IA
+                const prompt = `Gere um quiz com 10 perguntas.`;
+
+                // Prepara o payload para a requisição POST, incluindo a chave
+                const payload = {
+                    tema: topic,
+                    nivel: complexity,
+                    id: new Date().getTime(),
+                    prompt: prompt,
+                    key: apiKey // Inclui a chave no payload
+                };
+
+                // Faz a requisição POST para o endpoint
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                // Verifica se a resposta da rede foi bem-sucedida
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Erro na rede: ${response.status} - ${errorText}`);
+                }
+
+                // Tenta analisar a resposta como JSON
+                const result = await response.json();
+                const quizData = result.output;
+
+                // Verifica se o quizData é um array e contém perguntas
+                if (Array.isArray(quizData) && quizData.length > 0) {
+                    renderQuiz(quizData);
+                    showMessage('Quiz gerado com sucesso!', 'success');
+                } else {
+                    showMessage('Não foi possível gerar o quiz. A resposta da IA pode estar vazia ou em formato inesperado.', 'error');
+                }
+
+            } catch (error) {
+                // Captura e exibe erros
+                console.error('Erro ao gerar o quiz:', error);
+                showMessage(`Ocorreu um erro ao gerar o quiz: ${error.message}. Por favor, tente novamente.`, 'error');
+            } finally {
+                // Esconde o loader e reabilita o botão
+                loader.style.display = 'none';
+                generateQuizBtn.disabled = false;
+                generateQuizBtn.textContent = 'Gerar Quiz';
+            }
+        }
+
+        // Função para renderizar o quiz na interface
+        function renderQuiz(quiz) {
+            quiz.forEach((q, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'quiz-question';
+                questionDiv.dataset.correctAnswer = q.correct_answer;
+
+                const optionsHtml = q.options.map(option =>
+                    `<div class="option" data-value="${option}">${option}</div>`
+                ).join('');
+
+                questionDiv.innerHTML = `
+                    <p>${index + 1}. ${q.question}</p>
+                    <div class="quiz-options">
+                        ${optionsHtml}
+                    </div>
+                `;
+                quizOutput.appendChild(questionDiv);
+
+                const optionsElements = questionDiv.querySelectorAll('.option');
+                optionsElements.forEach(optionEl => {
+                    optionEl.addEventListener('click', handleOptionClick);
+                });
+            });
+        }
+
+        // Função para lidar com o clique em uma opção de resposta
+        function handleOptionClick(event) {
+            const selectedOptionEl = event.target;
+            const questionDiv = selectedOptionEl.closest('.quiz-question');
+            const optionsContainer = selectedOptionEl.closest('.quiz-options');
+
+            if (questionDiv.classList.contains('correct') || questionDiv.classList.contains('incorrect-answered')) {
+                return;
+            }
+
+            const correctAnswer = questionDiv.dataset.correctAnswer;
+            const selectedAnswer = selectedOptionEl.dataset.value;
+
+            optionsContainer.querySelectorAll('.option').forEach(option => {
+                option.classList.remove('selected');
+                option.classList.remove('correct-option');
+                option.classList.remove('incorrect-option');
+            });
+            selectedOptionEl.classList.add('selected');
+
+            if (selectedAnswer === correctAnswer) {
+                questionDiv.classList.add('correct');
+                selectedOptionEl.classList.add('correct-option');
+            } else {
+                questionDiv.classList.add('incorrect-answered');
+                selectedOptionEl.classList.add('incorrect-option');
+
+                optionsContainer.querySelectorAll('.option').forEach(option => {
+                    if (option.dataset.value === correctAnswer) {
+                        option.classList.add('correct-option');
+                    }
+                });
+            }
+
+            optionsContainer.querySelectorAll('.option').forEach(option => {
+                option.style.pointerEvents = 'none';
+            });
+        }
+
+        // Adiciona o event listener ao botão
+        generateQuizBtn.addEventListener('click', generateQuiz);
+
+        // Carrega a API Key ao carregar a página
+        loadApiKey();
+    </script>
+</body>
+</html>
