@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Quiz ChatGPT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Define a fonte Inter para todo o corpo */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Cor de fundo suave */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        /* Estilo para o contêiner principal do aplicativo */
+        .quiz-container {
+            background-color: #ffffff;
+            padding: 2.5rem; /* Aumenta o padding */
+            border-radius: 1.5rem; /* Mais arredondado */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Sombra mais pronunciada */
+            width: 100%;
+            max-width: 600px; /* Largura máxima para desktops */
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem; /* Espaçamento entre elementos */
+        }
+        /* Estilos para inputs e botões */
+        input[type="text"], input[type="password"], select, button, input[type="range"] {
+            border-radius: 0.75rem; /* Cantos arredondados */
+            padding: 0.75rem 1rem; /* Padding interno */
+            font-size: 1rem;
+            border: 1px solid #cbd5e1; /* Borda padrão */
+            transition: all 0.2s ease-in-out; /* Transição suave */
+        }
+        input[type="text"]:focus, input[type="password"]:focus, select:focus, input[type="range"]:focus {
+            outline: none;
+            border-color: #6366f1; /* Borda roxa ao focar */
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); /* Sombra de foco */
+        }
+        button {
+            background-color: #6366f1; /* Cor de fundo roxa */
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3); /* Sombra para o botão */
+        }
+        button:hover {
+            background-color: #4f46e5; /* Cor mais escura ao passar o mouse */
+            transform: translateY(-2px); /* Efeito de elevação */
+        }
+        button:active {
+            transform: translateY(0); /* Retorna ao normal ao clicar */
+        }
+        /* Estilo para o indicador de carregamento */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #6366f1;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: none; /* Escondido por padrão */
+            margin: 1rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Estilo para as perguntas do quiz */
+        .quiz-question {
+            background-color: #f8fafc; /* Fundo mais claro para perguntas */
+            padding: 1.25rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            border: 1px solid #e2e8f0;
+            transition: background-color 0.3s ease; /* Transição para mudança de cor */
+        }
+        .quiz-question p {
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: #1a202c; /* Cor do texto da pergunta */
+        }
+        .quiz-options div {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background-color: #edf2f7; /* Fundo para opções */
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .quiz-options div:hover:not(.selected) { /* Não aplica hover se já selecionado */
+            background-color: #e2e8f0; /* Fundo mais escuro ao passar o mouse */
+        }
+        .message-box {
+            padding: 1rem;
+            border-radius: 0.75rem;
+            margin-top: 1rem;
+            text-align: center;
+            font-weight: 500;
+        }
+        .message-box.success {
+            background-color: #d1fae5; /* Verde claro */
+            color: #065f46; /* Verde escuro */
+        }
+        .message-box.error {
+            background-color: #fee2e2; /* Vermelho claro */
+            color: #991b1b; /* Vermelho escuro */
+        }
+        /* Estilo para resposta correta */
+        .quiz-question.correct {
+            background-color: #d1fae5; /* Verde claro para resposta correta */
+            border-color: #065f46; /* Borda verde escuro */
+        }
+        /* Estilo para opção selecionada */
+        .quiz-options div.selected {
+            font-weight: 700;
+            background-color: #c7d2fe; /* Azul claro para opção selecionada */
+            border: 1px solid #6366f1;
+            cursor: default; /* Remove o cursor de ponteiro */
+        }
+        /* Estilo para opção correta (após seleção) */
+        .quiz-options div.correct-option {
+            background-color: #a7f3d0; /* Verde mais claro para a opção correta */
+            font-weight: 700;
+        }
+        /* Estilo para opção incorreta (após seleção) */
+        .quiz-options div.incorrect-option {
+            background-color: #fecaca; /* Vermelho mais claro para a opção incorreta */
+            font-weight: 700;
+        }
+        /* Estilo para a explicação */
+        .explanation {
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            background-color: #e0f2fe; /* Azul claro para a explicação */
+            color: #0c4a6e; /* Azul escuro para o texto */
+            border-radius: 0.5rem;
+            border: 1px solid #93c5fd;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        .range-label-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Gerador de Quiz ChatGPT</h1>
+
+        <div>
+            <label for="topic" class="block text-gray-700 text-sm font-medium mb-2">Tópico do Quiz:</label>
+            <input type="text" id="topic" placeholder="Ex: Inteligência Artificial, História do Brasil" class="w-full">
+        </div>
+
+        <div>
+            <label for="complexity" class="block text-gray-700 text-sm font-medium mb-2">Nível de Complexidade:</label>
+            <select id="complexity" class="w-full">
+                <option value="básica">Básica</option>
+                <option value="intermediária">Intermediária</option>
+                <option value="avançada">Avançada</option>
+                <option value="especializada">Especializada</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="chatgptModel" class="block text-gray-700 text-sm font-medium mb-2">Modelo ChatGPT:</label>
+            <select id="chatgptModel" class="w-full">
+                <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                <option value="gpt-4o">gpt-4o</option>
+                </select>
+        </div>
+
+        <div>
+            <div class="range-label-container">
+                <label for="temperature" class="block text-gray-700 text-sm font-medium">Temperatura:</label>
+                <span id="temperatureValue" class="text-gray-600 text-sm">0.7</span>
+            </div>
+            <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.7" class="w-full">
+        </div>
+
+        <div>
+            <div class="range-label-container">
+                <label for="maxOutputTokens" class="block text-gray-700 text-sm font-medium">Tokens Máximos:</label>
+                <span id="maxOutputTokensValue" class="text-gray-600 text-sm">4096</span>
+            </div>
+            <input type="range" id="maxOutputTokens" min="1" max="16384" step="1" value="4096" class="w-full">
+        </div>
+
+        <div>
+            <label for="apiKey" class="block text-gray-700 text-sm font-medium mb-2">Key (Chave de Acesso OpenAI):</label>
+            <input type="password" id="apiKey" placeholder="Insira sua chave de API OpenAI" class="w-full">
+        </div>
+
+        <button id="generateQuizBtn" class="w-full">Gerar Quiz</button>
+
+        <div id="loader" class="loader"></div>
+
+        <div id="messageBox" class="message-box hidden"></div>
+
+        <div id="quizOutput" class="mt-6">
+            </div>
+    </div>
+
+    <script>
+        // Seleciona os elementos HTML
+        const topicInput = document.getElementById('topic');
+        const complexitySelect = document.getElementById('complexity');
+        const chatgptModelSelect = document.getElementById('chatgptModel');
+        const temperatureInput = document.getElementById('temperature');
+        const temperatureValueSpan = document.getElementById('temperatureValue');
+        const maxOutputTokensInput = document.getElementById('maxOutputTokens');
+        const maxOutputTokensValueSpan = document.getElementById('maxOutputTokensValue');
+        const apiKeyInput = document.getElementById('apiKey');
+        const generateQuizBtn = document.getElementById('generateQuizBtn');
+        const loader = document.getElementById('loader');
+        const quizOutput = document.getElementById('quizOutput');
+        const messageBox = document.getElementById('messageBox');
+
+        // Chaves para armazenar configurações no localStorage
+        const LOCAL_STORAGE_API_KEY = 'openaiApiKey';
+        const LOCAL_STORAGE_MODEL = 'chatgptModel';
+        const LOCAL_STORAGE_TEMPERATURE = 'chatgptTemperature';
+        const LOCAL_STORAGE_TOKENS = 'chatgptMaxOutputTokens';
+
+        // URL base da API OpenAI para chat completions
+        const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+
+        // Função para exibir mensagens ao usuário
+        function showMessage(message, type) {
+            messageBox.textContent = message;
+            messageBox.className = `message-box ${type}`;
+            messageBox.classList.remove('hidden');
+        }
+
+        // Função para esconder mensagens
+        function hideMessage() {
+            messageBox.classList.add('hidden');
+        }
+
+        // Funções para carregar e salvar configurações do localStorage
+        function loadSettings() {
+            const storedApiKey = localStorage.getItem(LOCAL_STORAGE_API_KEY);
+            if (storedApiKey) apiKeyInput.value = storedApiKey;
+
+            const storedModel = localStorage.getItem(LOCAL_STORAGE_MODEL);
+            if (storedModel) chatgptModelSelect.value = storedModel;
+
+            const storedTemperature = localStorage.getItem(LOCAL_STORAGE_TEMPERATURE);
+            if (storedTemperature) {
+                temperatureInput.value = storedTemperature;
+                temperatureValueSpan.textContent = storedTemperature;
+            }
+
+            const storedTokens = localStorage.getItem(LOCAL_STORAGE_TOKENS);
+            if (storedTokens) {
+                maxOutputTokensInput.value = storedTokens;
+                maxOutputTokensValueSpan.textContent = storedTokens;
+            }
+        }
+
+        function saveSetting(key, value) {
+            localStorage.setItem(key, value);
+        }
+
+        // Adiciona event listeners para salvar configurações ao mudar
+        apiKeyInput.addEventListener('input', (event) => saveSetting(LOCAL_STORAGE_API_KEY, event.target.value));
+        chatgptModelSelect.addEventListener('change', (event) => saveSetting(LOCAL_STORAGE_MODEL, event.target.value));
+        temperatureInput.addEventListener('input', (event) => {
+            saveSetting(LOCAL_STORAGE_TEMPERATURE, event.target.value);
+            temperatureValueSpan.textContent = event.target.value;
+        });
+        maxOutputTokensInput.addEventListener('input', (event) => {
+            saveSetting(LOCAL_STORAGE_TOKENS, event.target.value);
+            maxOutputTokensValueSpan.textContent = event.target.value;
+        });
+
+        // Função para gerar o quiz
+        async function generateQuiz() {
+            // Limpa a área de quiz e esconde mensagens anteriores
+            quizOutput.innerHTML = '';
+            hideMessage();
+
+            const topic = topicInput.value.trim();
+            const complexity = complexitySelect.value;
+            const selectedModel = chatgptModelSelect.value;
+            const temperature = parseFloat(temperatureInput.value);
+            const maxOutputTokens = parseInt(maxOutputTokensInput.value);
+            const apiKey = apiKeyInput.value.trim();
+
+            // Validação dos inputs
+            if (!topic) {
+                showMessage('Por favor, insira um tópico para o quiz.', 'error');
+                return;
+            }
+            if (!apiKey) {
+                showMessage('Por favor, insira sua chave de acesso (Key) da API OpenAI.', 'error');
+                return;
+            }
+
+            // Exibe o loader e desabilita o botão
+            loader.style.display = 'block';
+            generateQuizBtn.disabled = true;
+            generateQuizBtn.textContent = 'Gerando...';
+
+            try {
+                // Constrói o prompt para a IA
+                const prompt = `Gere um quiz com 10 perguntas sobre o seguinte tópico: "${topic}". O nível de complexidade das perguntas deve ser: "${complexity}". Para cada pergunta, forneça: 1. A pergunta em si. 2. Uma lista de 4 opções de resposta. 3. A resposta correta (uma das opções fornecidas). 4. Uma pequena explicação da resposta correta. O quiz deve ser retornado em formato JSON, seguindo a seguinte estrutura: [{"question": "...", "options": ["...", "...", "...", "..."], "correct_answer": "...", "explanation": "..."}]`;
+
+                // Prepara o payload para a requisição POST para a API OpenAI
+                const payload = {
+                    model: selectedModel,
+                    messages: [
+                        { role: "system", content: "Você é um gerador de quiz. Sua tarefa é criar quizzes no formato JSON especificado." },
+                        { role: "user", content: prompt }
+                    ],
+                    temperature: temperature,
+                    max_tokens: maxOutputTokens,
+                    response_format: { type: "json_object" } // Solicita resposta em JSON
+                };
+
+                // Faz a requisição POST para a API OpenAI
+                const response = await fetch(OPENAI_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}` // Autenticação com Bearer Token
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                // Verifica se a resposta da rede foi bem-sucedida
+                if (!response.ok) {
+                    const errorJson = await response.json();
+                    throw new Error(`Erro na API OpenAI: ${response.status} - ${JSON.stringify(errorJson)}`);
+                }
+
+                // Tenta analisar a resposta como JSON
+                const result = await response.json();
+
+                let quizData = [];
+                if (result.choices && result.choices.length > 0 && result.choices[0].message && result.choices[0].message.content) {
+                    let jsonString = result.choices[0].message.content;
+
+                    // Tenta extrair JSON de um bloco de código markdown, se presente
+                    const jsonMatch = jsonString.match(/```json\n([\s\S]*?)\n```/);
+                    if (jsonMatch && jsonMatch[1]) {
+                        jsonString = jsonMatch[1];
+                    }
+
+                    try {
+                        // AQUI É A MUDANÇA: Verifica se o JSON retornado tem a chave 'quiz'
+                        const parsedResponse = JSON.parse(jsonString);
+                        if (parsedResponse && parsedResponse.quiz && Array.isArray(parsedResponse.quiz)) {
+                            quizData = parsedResponse.quiz;
+                        } else {
+                            throw new Error('A resposta da IA não contém o objeto "quiz" esperado ou não é um array.');
+                        }
+                    } catch (parseError) {
+                        console.error('Erro ao analisar JSON da resposta da IA:', parseError);
+                        console.error('String JSON recebida:', jsonString); // Loga a string problemática
+                        throw new Error('Formato de quiz inválido recebido da IA. Certifique-se de que o modelo gerou um JSON válido e completo.');
+                    }
+                } else {
+                    throw new Error('Resposta da IA vazia ou em formato inesperado.');
+                }
+
+                // Verifica se o quizData é um array e contém perguntas
+                if (Array.isArray(quizData) && quizData.length > 0) {
+                    renderQuiz(quizData);
+                    showMessage('Quiz gerado com sucesso!', 'success');
+                } else {
+                    showMessage('Não foi possível gerar o quiz. A resposta da IA pode estar vazia ou em formato inesperado.', 'error');
+                }
+
+            } catch (error) {
+                // Captura e exibe erros
+                console.error('Erro ao gerar o quiz:', error);
+                showMessage(`Ocorreu um erro ao gerar o quiz: ${error.message}. Por favor, tente novamente.`, 'error');
+            } finally {
+                // Esconde o loader e reabilita o botão
+                loader.style.display = 'none';
+                generateQuizBtn.disabled = false;
+                generateQuizBtn.textContent = 'Gerar Quiz';
+            }
+        }
+
+        // Função para renderizar o quiz na interface
+        function renderQuiz(quiz) {
+            quiz.forEach((q, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'quiz-question';
+                questionDiv.dataset.correctAnswer = q.correct_answer;
+                questionDiv.dataset.explanation = q.explanation || 'Nenhuma explicação disponível.';
+
+                const optionsHtml = q.options.map(option =>
+                    `<div class="option" data-value="${option}">${option}</div>`
+                ).join('');
+
+                questionDiv.innerHTML = `
+                    <p>${index + 1}. ${q.question}</p>
+                    <div class="quiz-options">
+                        ${optionsHtml}
+                    </div>
+                    <div class="explanation hidden">
+                        <strong>Explicação:</strong> <span class="explanation-text"></span>
+                    </div>
+                `;
+                quizOutput.appendChild(questionDiv);
+
+                const optionsElements = questionDiv.querySelectorAll('.option');
+                optionsElements.forEach(optionEl => {
+                    optionEl.addEventListener('click', handleOptionClick);
+                });
+            });
+        }
+
+        // Função para lidar com o clique em uma opção de resposta
+        function handleOptionClick(event) {
+            const selectedOptionEl = event.target;
+            const questionDiv = selectedOptionEl.closest('.quiz-question');
+            const optionsContainer = selectedOptionEl.closest('.quiz-options');
+
+            if (questionDiv.classList.contains('correct') || questionDiv.classList.contains('incorrect-answered')) {
+                return;
+            }
+
+            const correctAnswer = questionDiv.dataset.correctAnswer;
+            const selectedAnswer = selectedOptionEl.dataset.value;
+            const explanation = questionDiv.dataset.explanation;
+
+            optionsContainer.querySelectorAll('.option').forEach(option => {
+                option.classList.remove('selected');
+                option.classList.remove('correct-option');
+                option.classList.remove('incorrect-option');
+            });
+            selectedOptionEl.classList.add('selected');
+
+            if (selectedAnswer === correctAnswer) {
+                questionDiv.classList.add('correct');
+                selectedOptionEl.classList.add('correct-option');
+            } else {
+                questionDiv.classList.add('incorrect-answered');
+                selectedOptionEl.classList.add('incorrect-option');
+
+                optionsContainer.querySelectorAll('.option').forEach(option => {
+                    if (option.dataset.value === correctAnswer) {
+                        option.classList.add('correct-option');
+                    }
+                });
+            }
+
+            const explanationDiv = questionDiv.querySelector('.explanation');
+            const explanationTextSpan = explanationDiv.querySelector('.explanation-text');
+            if (explanationTextSpan) {
+                explanationTextSpan.textContent = explanation;
+                explanationDiv.classList.remove('hidden');
+            }
+
+            optionsContainer.querySelectorAll('.option').forEach(option => {
+                option.style.pointerEvents = 'none';
+            });
+        }
+
+        // Adiciona o event listener ao botão
+        generateQuizBtn.addEventListener('click', generateQuiz);
+
+        // Carrega as configurações ao carregar a página
+        loadSettings();
+    </script>
+</body>
+</html>
