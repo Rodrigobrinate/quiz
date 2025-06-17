@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Implementação Básica do SurveyJS Creator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://unpkg.com/survey-core/survey-core.min.css" type="text/css" rel="stylesheet">
+    <script src="https://unpkg.com/survey-core/survey.core.min.js"></script>
+    <script src="https://unpkg.com/survey-js-ui/survey-js-ui.min.js"></script>
+    <link href="https://unpkg.com/survey-creator-core/survey-creator-core.min.css" type="text/css" rel="stylesheet">
+    <script src="https://unpkg.com/survey-creator-core/survey-creator-core.min.js"></script>
+    <script src="https://unpkg.com/survey-creator-js/survey-creator-js.min.js"></script>
+</head>
+<body>
+    <div id="surveyCreatorContainer"></div>
+
+    <script type="text/javascript">
+        // Opções de configuração para o Survey Creator
+        const creatorOptions = {
+            showLogicTab: true
+        };
+
+        // Instanciação do Survey Creator
+        const creator = new SurveyCreator.SurveyCreator(creatorOptions);
+
+        // Renderização do Survey Creator no contêiner
+        creator.render("surveyCreatorContainer");
+
+        // Exemplo de JSON de uma pesquisa para iniciar
+        creator.JSON = {
+            "title": "Pesquisa de Feedback do Produto",
+            "showProgressBar": "top",
+            "pages": [
+                {
+                    "name": "page1",
+                    "elements": [
+                        {
+                            "type": "comment",
+                            "name": "question1",
+                            "title": "Por favor, compartilhe seu feedback sobre o nosso produto."
+                        }
+                    ]
+                }
+            ]
+        };
+    </script>
+</body>
+</html>
